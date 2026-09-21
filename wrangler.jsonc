@@ -4,13 +4,23 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "heartbeat-project",
+	"name": "cloudflare-heartbeat",
 	"main": "src/index.ts",
 	"compatibility_date": "2026-09-11",
 	"observability": {
 		"enabled": true
 	},
-	"upload_source_maps": true
+	"vars": {
+		"LAST_SEEN_WINDOW_MINUTES": "10",
+		"NOTIFICATION_LANGUAGE": "it"
+	},
+	"upload_source_maps": true,
+	"kv_namespaces": [
+		{
+			"binding": "SERVER_STATUS",
+			"id": "c42f3cf69c884ee5a2826a9c0f39c9e5"
+		}
+	]
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
