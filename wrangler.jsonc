@@ -6,7 +6,7 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "cloudflare-heartbeat",
 	"main": "src/index.ts",
-	"compatibility_date": "2026-09-11",
+	"compatibility_date": "2026-09-18",
 	"observability": {
 		"enabled": true
 	},

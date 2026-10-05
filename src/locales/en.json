@@ -1,4 +1,10 @@
 {
     "status_up": "Server is back online",
-    "status_down": "Server is not responding"
+    "status_down": "Server is not responding",
+    "telegram": {
+        "last_seen": "Last seen",
+        "current_status": "Current status",
+        "no_detection": "No detection",
+        "command_message": "Type /status to check the current status"
+    }
 }

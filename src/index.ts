@@ -1,5 +1,6 @@
-import { Status } from "./Status"
-import { parseLang, buildNotificationMessage } from "./i18n"
+import { Status, Heartbeat, NotificationState, ServiceStatus } from "./types"
+import { buildNotificationMessage, DEFAULT_LANG } from "./i18n"
+import { sendNotification } from "./telegram"
 
 const MIN_WINDOW = 1
 
@@ -7,20 +8,8 @@ const MAX_WINDOW = 120
 
 const DEFAULT_WINDOW = 10
 
-type Heartbeat = {
-	last_seen: number
-}
-
-export type NotificationState = {
-	notification_status: Status | null
-	notification_last_send: number | null
-}
-
-type ServiceStatus = Heartbeat | NotificationState
-
 export function parseWindowMinutes(rawEnvVal: string | undefined) {
 	const parsed = Number(rawEnvVal);
-
 	if (!rawEnvVal || Number.isNaN(parsed)) {
 		return DEFAULT_WINDOW;
 	}
@@ -31,16 +20,18 @@ export function parseWindowMinutes(rawEnvVal: string | undefined) {
 }
 
 
-export async function runCheck(env: Env): Promise<void> {
+export async function getHeartBeatJson(env: Env): Promise<undefined | Heartbeat>  {
 	const heartbeat = await env.SERVER_STATUS.get('heartbeat')
-	if (!heartbeat) return;
+	if (heartbeat) 
+	return JSON.parse(heartbeat)
+}
 
-	const heartbeatJson: Heartbeat = JSON.parse(heartbeat)
-
+export async function runCheck(env: Env): Promise<void> {
+	const heartbeatJson = await getHeartBeatJson(env)
+	if (!heartbeatJson) return;
 	const notificationState = await env.SERVER_STATUS.get('notificationState')
 
 	let notificationStateJson: NotificationState
-
 	if (!notificationState) {
 		notificationStateJson = {
 			notification_status: null,
@@ -59,7 +50,6 @@ export async function runCheck(env: Env): Promise<void> {
 	const currentStatus = isTimedOut(minutes, last_seen) ? Status.Down : Status.Up
 
 	const firstRun = notification_status === null
-
 	if (firstRun) {
 		await setKvKey(env, "notificationState", {
 			notification_status: currentStatus,
@@ -70,11 +60,10 @@ export async function runCheck(env: Env): Promise<void> {
 			notification_status: currentStatus,
 			notification_last_send: Date.now()
 		}
-
-		const lang = parseLang(env.NOTIFICATION_LANGUAGE)
-		const message = buildNotificationMessage(currentStatus, lang)
-
 		await setKvKey(env, "notificationState", newState);
+
+		const lang = env.NOTIFICATION_LANGUAGE || DEFAULT_LANG
+		const message = buildNotificationMessage(currentStatus, lang)
 		await sendNotification(env, message)
 	}
 }
@@ -84,20 +73,6 @@ export function isTimedOut(minutes: number, last_seen: number) {
 	const lastSeenTime = new Date(last_seen).getTime()
 	const now = Date.now()
 	return (now - lastSeenTime) > thresholdMs
-}
-
-async function sendNotification(env: Env, message: string) {
-	const telegramBotToken = env.TELEGRAM_BOT_TOKEN
-	const telegramChatID = env.TELEGRAM_CHAT_ID
-
-	return fetch(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({
-			chat_id: telegramChatID,
-			text: message
-		})
-	});
 }
 
 async function setKvKey(env: Env, key: string, value: ServiceStatus) {
@@ -139,7 +114,7 @@ export default {
 			}
 
 			await setKvKey(env, "heartbeat", heartbeat)
-
+	
 			return new Response(JSON.stringify(heartbeat), {
 				headers: { "Content-Type": "application/json" }
 			})
@@ -148,7 +123,7 @@ export default {
 				'Errore in worker:',
 				err instanceof Error ? err.message : err
 			);
-			return new Response(JSON.stringify({ error: "Internal error" }), {
+			return new Response(JSON.stringify({ "error": "Internal error" }), {
 				status: 500,
 				headers: { "Content-Type": "application/json" }
 			})

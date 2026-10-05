@@ -1,4 +1,10 @@
 {
-    "status_up": "Il server è tornato online",
-    "status_down": "Il server non risponde più"
+    "status_up": "The server is back online",
+    "status_down": "The server is no longer responding",
+    "telegram": {
+        "last_seen": "Ultimo avvistamento",
+        "current_status": "Stato corrente",
+        "no_detection": "Nessun rilevamento",
+        "command_message": "Digiti /status per conoscere lo stato corrente"
+    }
 }

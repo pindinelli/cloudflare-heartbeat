@@ -1,0 +1,15 @@
+{
+    "$schema": "node_modules/wrangler/config-schema.json",
+    "name": "cloudflare-heartbeat-bot",
+    "main": "src/webhook.ts",
+    "compatibility_date": "2026-09-18",
+    "observability": {
+        "enabled": true
+    },
+    "kv_namespaces": [
+        {
+            "binding": "SERVER_STATUS",
+            "id": "c42f3cf69c884ee5a2826a9c0f39c9e5"
+        }
+    ]
+}

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { env } from 'cloudflare:test';
-import { Status } from '../src/Status';
-import { runCheck, type NotificationState } from '../src/index';
+import { env } from 'cloudflare:workers';
+import { Status, NotificationState } from '../src/types';
+import { runCheck  } from '../src/index';
 
 vi.stubGlobal(
 	'fetch',
