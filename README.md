@@ -1,4 +1,4 @@
-# cloudflare-heartbeat
+# still-alive
 
 A lightweight uptime monitor built on Cloudflare Workers. A monitored service
 pings an authenticated HTTP endpoint at regular intervals; a scheduled
