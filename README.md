@@ -90,7 +90,6 @@ register it in `src/shared/i18n.ts`, without touching the Workers' code.
 
 - Node.js 22 or 24 (LTS). Avoid odd-numbered "Current" releases, which can be
   less stable with some tooling.
-- pnpm
 - A Cloudflare account
 - A Telegram bot token and chat ID ([BotFather](https://t.me/BotFather) to
   create a bot)
@@ -100,7 +99,7 @@ register it in `src/shared/i18n.ts`, without touching the Workers' code.
 ### 1. Install dependencies
 
 ```bash
-pnpm install
+npm install
 ```
 
 ### 2. Log in to Cloudflare
@@ -206,8 +205,8 @@ openssl rand -hex 32
 ### 6. Generate TypeScript types
 
 ```bash
-pnpm cf-typegen
-pnpm cf-typegen:webhook
+npm run cf-typegen
+npm run cf-typegen:webhook
 ```
 
 These generate `worker-configuration.d.ts` and
@@ -218,12 +217,9 @@ new var), so `Env` stays in sync.
 ### 7. Deploy
 
 ```bash
-pnpm run deploy
-pnpm run deploy:webhook
+npm run deploy
+npm run deploy:webhook
 ```
-
-Use `pnpm run deploy`, not `pnpm deploy`: the latter is a built-in pnpm
-command and doesn't run the script.
 
 After the first deploy, check under **Settings → Triggers** in the Cloudflare
 dashboard that the Cron Trigger shows up, and that **Invocations** under
@@ -274,7 +270,7 @@ minute would be 1,440.
 Start the heartbeat Worker:
 
 ```bash
-pnpm dev
+npm run dev
 ```
 
 It runs at `http://localhost:8787`, with KV emulated locally, so no
@@ -289,7 +285,7 @@ curl http://localhost:8787/ -H "Authorization: Bearer YOUR_APP_TOKEN"
 Test the scheduled check on demand:
 
 ```bash
-pnpm dev --test-scheduled
+npm run dev -- --test-scheduled
 curl "http://localhost:8787/__scheduled"
 ```
 
@@ -299,7 +295,7 @@ curl "http://localhost:8787/__scheduled"
 Start the webhook Worker:
 
 ```bash
-pnpm dev:webhook
+npm run dev:webhook
 ```
 
 Simulate a Telegram update:
@@ -314,8 +310,8 @@ curl -X POST http://localhost:8787/ \
 ### Tests
 
 ```bash
-pnpm test           # watch mode
-pnpm test --run     # single run
+npm test              # watch mode
+npm test -- --run     # single run
 ```
 
 ## Monitoring in production
