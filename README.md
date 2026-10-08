@@ -19,8 +19,8 @@ The project is made of two Workers that share one KV namespace:
 
 | Worker | Config | Entry | Role |
 |---|---|---|---|
-| `still-alive` | `wrangler.jsonc` | `src/index.ts` | Receives heartbeats (`fetch`) and checks them on a schedule (`scheduled`) |
-| `still-alive-webhook` | `wrangler.webhook.jsonc` | `src/webhook.ts` | Telegram webhook that answers the `/status` command |
+| `still-alive` | `wrangler.jsonc` | `src/monitor/index.ts` | Receives heartbeats (`fetch`) and checks them on a schedule (`scheduled`) |
+| `still-alive-webhook` | `wrangler.webhook.jsonc` | `src/webhook/index.ts` | Telegram webhook that answers the `/status` command |
 
 **`still-alive` (heartbeat + scheduler)**
 
@@ -65,11 +65,15 @@ The bot Worker only reads these keys.
 
 ```
 src/
-├── index.ts          # Heartbeat Worker (fetch + scheduled handlers)
-├── webhook.ts        # Telegram webhook Worker
-├── telegram.ts       # Telegram API calls
-├── types.ts          # Shared types
-├── i18n.ts           # Locale loading and message lookup
+├── monitor/
+│   └── index.ts      # Heartbeat Worker (fetch + scheduled handlers)
+├── webhook/
+│   └── index.ts      # Telegram webhook Worker
+├── shared/
+│   ├── env.ts        # requireEnv: validates required variables per handler
+│   ├── i18n.ts       # Locale loading and message lookup
+│   ├── telegram.ts   # Telegram API calls
+│   └── types.ts      # Shared types
 └── locales/
     ├── it.json       # Italian text
     └── en.json       # English text
@@ -80,7 +84,7 @@ wrangler.webhook.jsonc        # Config for the Telegram webhook Worker
 
 Notification text lives in plain JSON files under `src/locales/`, separate
 from the Worker logic. To add a language, create a new `xx.json` file and
-register it in `i18n.ts`, without touching `index.ts`.
+register it in `src/shared/i18n.ts`, without touching the Workers' code.
 
 ## Prerequisites
 
