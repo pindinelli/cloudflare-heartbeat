@@ -1,6 +1,6 @@
 {
-    "status_up": "Server is back online",
-    "status_down": "Server is not responding",
+    "status_up": "The server is back online",
+    "status_down": "The server is no longer responding",
     "telegram": {
         "last_seen": "Last seen",
         "current_status": "Current status",

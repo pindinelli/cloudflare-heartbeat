@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { parseWindowMinutes, isTimedOut } from '../src/index';
+import { parseWindowMinutes, isTimedOut } from '../src/monitor/index';
 
 describe('parseWindowMinutes', () => {
     it('returns the default when the value is undefined', () => {

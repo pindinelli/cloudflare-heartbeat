@@ -1,13 +1,16 @@
 {
-	"name": "heartbeat-project",
+	"name": "still-alive",
 	"version": "0.0.0",
 	"private": true,
 	"scripts": {
-		"deploy": "wrangler deploy",
-		"dev": "wrangler dev",
-		"start": "wrangler dev",
+		"deploy": "wrangler deploy --config wrangler.jsonc",
+		"deploy:webhook": "wrangler deploy --config wrangler.webhook.jsonc",
+		"dev": "wrangler dev --config wrangler.jsonc",
+		"dev:webhook": "wrangler dev --config wrangler.webhook.jsonc",
+		"start": "wrangler dev --config wrangler.jsonc",
 		"test": "vitest",
-		"cf-typegen": "wrangler types"
+		"cf-typegen": "wrangler types worker-configuration.d.ts --config wrangler.jsonc",
+		"cf-typegen:webhook": "wrangler types webhook-worker-configuration.d.ts --config wrangler.webhook.jsonc"
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-plugin": "^1.0.0",

@@ -1,10 +1,13 @@
 {
     "$schema": "node_modules/wrangler/config-schema.json",
-    "name": "cloudflare-heartbeat-bot",
-    "main": "src/webhook.ts",
+    "name": "still-alive-webhook",
+    "main": "src/webhook/index.ts",
     "compatibility_date": "2026-09-18",
     "observability": {
         "enabled": true
+    },
+    "vars": {
+        "NOTIFICATION_LANGUAGE": "it"
     },
     "kv_namespaces": [
         {

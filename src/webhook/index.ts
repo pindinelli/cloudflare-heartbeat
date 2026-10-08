@@ -1,19 +1,34 @@
-import { getHeartBeatJson } from "."
-import { getTelegramLocale, DEFAULT_LANG } from "./i18n"
-import { sendNotification } from "./telegram"
-import { getLocaleConfig, TelegramBodyMessage } from "./types"
+import { getHeartBeatJson } from "../monitor"
+import { requireEnv } from "../shared/env"
+import { getTelegramLocale, DEFAULT_LANG } from "../shared/i18n"
+import { sendNotification } from "../shared/telegram"
+import { getLocaleConfig, TelegramBodyMessage } from "../shared/types"
 
 
 export default {
     async fetch(request: Request, env: Env, ctx: ExecutionContext) {
         try {
-            const body: TelegramBodyMessage = await request.json()
+            requireEnv(env, ['TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID', 'TELEGRAM_WEBHOOK_SECRET'])
+            
+            if (request.method !== 'POST') {
+                return new Response('Method not allowed', { status: 405 })
+            }
+
+            const received = request.headers.get('X-Telegram-Bot-Api-Secret-Token')
+            if (received !== env.TELEGRAM_WEBHOOK_SECRET) {
+                return new Response('Unauthorized', { status: 401 })
+            }
+      
+            const body = (await request.json().catch(() => null)) as TelegramBodyMessage | null
+
+            if (body === null) {
+                return new Response('Invalid JSON', { status: 400 })
+            }
             const message = body?.message?.text
-            let notificationMessage: string
             const lang = env.NOTIFICATION_LANGUAGE || DEFAULT_LANG
             const telegramLocale = getTelegramLocale(lang)
             const localeConfig = getLocaleConfig(lang)
-
+            let notificationMessage: string
             if (message === '/status') {
                 const notificationState = await env.SERVER_STATUS.get('notificationState')
 
@@ -37,14 +52,13 @@ export default {
                             second: "2-digit"
                         })}\n${telegramLocale?.current_status}: ${status}`;
                 }
-
             } else {
                 notificationMessage = telegramLocale?.command_message
             }
             await sendNotification(env, notificationMessage)
+            return new Response('', { status: 200 })
         } catch (err) {
             console.error('Webhook error:', err)
-        } finally {
             return new Response('', { status: 200 })
         }
     }

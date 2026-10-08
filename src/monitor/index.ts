@@ -1,12 +1,18 @@
-import { Status, Heartbeat, NotificationState, ServiceStatus } from "./types"
-import { buildNotificationMessage, DEFAULT_LANG } from "./i18n"
-import { sendNotification } from "./telegram"
+import { Status, Heartbeat, NotificationState, ServiceStatus } from "../shared/types"
+import { buildNotificationMessage, DEFAULT_LANG } from "../shared/i18n"
+import { sendNotification } from "../shared/telegram"
+import { requireEnv } from "../shared/env"
+
 
 const MIN_WINDOW = 1
 
 const MAX_WINDOW = 120
 
 const DEFAULT_WINDOW = 10
+
+const SECONDS_PER_MINUTE = 60
+
+const MS_PER_SECOND = 1000
 
 export function parseWindowMinutes(rawEnvVal: string | undefined) {
 	const parsed = Number(rawEnvVal);
@@ -18,7 +24,6 @@ export function parseWindowMinutes(rawEnvVal: string | undefined) {
 
 	return Math.min(Math.max(integerVal, MIN_WINDOW), MAX_WINDOW)
 }
-
 
 export async function getHeartBeatJson(env: Env): Promise<undefined | Heartbeat>  {
 	const heartbeat = await env.SERVER_STATUS.get('heartbeat')
@@ -40,16 +45,14 @@ export async function runCheck(env: Env): Promise<void> {
 	} else {
 		notificationStateJson = JSON.parse(notificationState)
 	}
-
 	const { notification_status } = notificationStateJson
 
 	const minutes = parseWindowMinutes(env.LAST_SEEN_WINDOW_MINUTES)
-
 	const last_seen = Number(heartbeatJson.last_seen)
-
 	const currentStatus = isTimedOut(minutes, last_seen) ? Status.Down : Status.Up
 
 	const firstRun = notification_status === null
+
 	if (firstRun) {
 		await setKvKey(env, "notificationState", {
 			notification_status: currentStatus,
@@ -68,36 +71,22 @@ export async function runCheck(env: Env): Promise<void> {
 	}
 }
 
-export function isTimedOut(minutes: number, last_seen: number) {
-	const thresholdMs = Number(minutes) * 60 * 1000
-	const lastSeenTime = new Date(last_seen).getTime()
+export function isTimedOut(minutes: number, lastSeen: number): boolean {
 	const now = Date.now()
-	return (now - lastSeenTime) > thresholdMs
+	console.log(now, lastSeen, minutes * SECONDS_PER_MINUTE * MS_PER_SECOND)
+	if (!Number.isFinite(lastSeen)) return true
+	return now - lastSeen > minutes * SECONDS_PER_MINUTE * MS_PER_SECOND
 }
 
 async function setKvKey(env: Env, key: string, value: ServiceStatus) {
 	await env.SERVER_STATUS.put(key, JSON.stringify(value))
 }
 
-function validateEnv(env: Env) {
-	if (!env.APP_TOKEN) {
-		throw new Error("Missing APP_TOKEN")
-	}
-
-	if (!env.TELEGRAM_BOT_TOKEN) {
-		throw new Error("Missing TELEGRAM_BOT_TOKEN")
-	}
-
-	if (!env.TELEGRAM_CHAT_ID) {
-		throw new Error("Missing TELEGRAM_CHAT_ID")
-	}
-}
-
 
 export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext) {
 		try {
-			validateEnv(env)
+			requireEnv(env, ['APP_TOKEN'])
 
 			const authHeader = request.headers.get("Authorization")
 
@@ -130,8 +119,8 @@ export default {
 		}
 	},
 	async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
+
 		try {
-			validateEnv(env)
 			await runCheck(env);
 		} catch (err) {
 			console.error(

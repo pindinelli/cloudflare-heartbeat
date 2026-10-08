@@ -1,14 +1,13 @@
-import itRaw from './locales/it.json'
-import enRaw from './locales/en.json'
+import itRaw from '../locales/it.json'
+import enRaw from '../locales/en.json'
 import { Locale, TelegramLocale, Status } from "./types"
 
+export const DEFAULT_LANG = 'it'
 
 const it: Locale = itRaw satisfies Locale
 const en: Locale = enRaw satisfies Locale
 
 const LOCALES: Record<string, Locale> = { it, en }
-
-export const DEFAULT_LANG = 'it'
 
 function getLocale(lang: string): Locale {
     return LOCALES[lang] ?? LOCALES[DEFAULT_LANG]

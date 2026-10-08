@@ -1,14 +1,25 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { env } from 'cloudflare:workers';
-import webhook from '../src/webhook';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { env } from 'cloudflare:workers'
+import webhook from '../src/webhook'
+import { sendNotification } from '../src/shared/telegram'
 
-
-vi.mock('../src/telegram', () => ({
+vi.mock('../src/shared/telegram', () => ({
     sendNotification: vi.fn(async () => new Response(JSON.stringify({ ok: true }))),
-}));
+}))
+
+function webhookRequest(body: unknown, headers: Record<string, string> = {}) {
+    return new Request('http://localhost:8787/webhook', {
+        method: 'POST',
+        headers: {
+            'X-Telegram-Bot-Api-Secret-Token': env.TELEGRAM_WEBHOOK_SECRET,
+            ...headers,
+        },
+        body: typeof body === 'string' ? body : JSON.stringify(body),
+    })
+}
 
 async function setHeartbeat(last_seen: number) {
-    await env.SERVER_STATUS.put('heartbeat', JSON.stringify({ last_seen }));
+    await env.SERVER_STATUS.put('heartbeat', JSON.stringify({ last_seen }))
 }
 
 async function setNotificationState(status: string) {
@@ -17,94 +28,83 @@ async function setNotificationState(status: string) {
         JSON.stringify({
             notification_status: status,
             notification_last_send: Date.now(),
-        })
-    );
+        }),
+    )
 }
 
 beforeEach(async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-01-21T14:32:00Z'));
-    await env.SERVER_STATUS.delete('heartbeat');
-    await env.SERVER_STATUS.delete('notificationState');
-});
+    vi.clearAllMocks()
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-01-21T14:32:00Z'))
+    await env.SERVER_STATUS.delete('heartbeat')
+    await env.SERVER_STATUS.delete('notificationState')
+})
 
 afterEach(() => {
-    vi.useRealTimers();
-});
+    vi.useRealTimers()
+})
 
 describe('webhook handler', () => {
-    it('returns 200 OK for any request', async () => {
-        const request = new Request('http://localhost:8787/webhook', {
-            method: 'POST',
-            body: JSON.stringify({ message: { text: '/status' } }),
-        });
+    it('rejects non-POST requests with 405', async () => {
+        const request = new Request('http://localhost:8787/webhook', { method: 'GET' })
+        const response = await webhook.fetch(request, env, {} as ExecutionContext)
+        expect(response.status).toBe(405)
+    })
 
-        const response = await webhook.fetch(request, env, {} as ExecutionContext);
+    it('rejects requests with a missing or wrong secret with 401', async () => {
+        const wrong = webhookRequest({ message: { text: '/status' } }, {
+            'X-Telegram-Bot-Api-Secret-Token': 'wrong',
+        })
+        const response = await webhook.fetch(wrong, env, {} as ExecutionContext)
+        expect(response.status).toBe(401)
+        expect(sendNotification).not.toHaveBeenCalled()
+    })
 
-        expect(response.status).toBe(200);
-    });
+    it('returns 200 and sends last_seen and status on /status', async () => {
+        await setHeartbeat(Date.now())
+        await setNotificationState('OK')
 
-    it('responds with last_seen and current_status when /status is received', async () => {
-        const now = Date.now();
-        await setHeartbeat(now);
-        await setNotificationState('OK');
+        const response = await webhook.fetch(
+            webhookRequest({ message: { chat: { id: 123 }, text: '/status' } }),
+            env,
+            {} as ExecutionContext,
+        )
 
-        const request = new Request('http://localhost:8787/webhook', {
-            method: 'POST',
-            body: JSON.stringify({
-                message: {
-                    chat: { id: 123 },
-                    text: '/status',
-                },
-            }),
-        });
+        expect(response.status).toBe(200)
+        expect(sendNotification).toHaveBeenCalledOnce()
+        const message = vi.mocked(sendNotification).mock.calls[0][1]
+        expect(message).toContain('OK')
+    })
 
-        const response = await webhook.fetch(request, env, {} as ExecutionContext);
+    it('sends no_detection when no heartbeat has been recorded', async () => {
+        const response = await webhook.fetch(
+            webhookRequest({ message: { chat: { id: 123 }, text: '/status' } }),
+            env,
+            {} as ExecutionContext,
+        )
 
-        expect(response.status).toBe(200);
-        // sendNotification dovrebbe essere stato chiamato con un messaggio contenente last_seen e status
-        // (il mock non logga, ma il test non fallisce se sendNotification viene chiamato)
-    });
+        expect(response.status).toBe(200)
+        expect(sendNotification).toHaveBeenCalledOnce()
+    })
 
-    it('responds with no_detection when no heartbeat has been recorded', async () => {
-        const request = new Request('http://localhost:8787/webhook', {
-            method: 'POST',
-            body: JSON.stringify({
-                message: {
-                    chat: { id: 123 },
-                    text: '/status',
-                },
-            }),
-        });
+    it('sends command_message for unknown commands', async () => {
+        const response = await webhook.fetch(
+            webhookRequest({ message: { chat: { id: 123 }, text: '/help' } }),
+            env,
+            {} as ExecutionContext,
+        )
 
-        const response = await webhook.fetch(request, env, {} as ExecutionContext);
+        expect(response.status).toBe(200)
+        expect(sendNotification).toHaveBeenCalledOnce()
+    })
 
-        expect(response.status).toBe(200);
-    });
+    it('returns 400 for malformed JSON', async () => {
+        const response = await webhook.fetch(
+            webhookRequest('not valid json'),
+            env,
+            {} as ExecutionContext,
+        )
 
-    it('responds with command_message for unknown commands', async () => {
-        const request = new Request('http://localhost:8787/webhook', {
-            method: 'POST',
-            body: JSON.stringify({
-                message: {
-                    chat: { id: 123 },
-                    text: '/help',
-                },
-            }),
-        });
-
-        const response = await webhook.fetch(request, env, {} as ExecutionContext);
-
-        expect(response.status).toBe(200);
-    });
-
-    it('handles malformed JSON gracefully', async () => {
-        const request = new Request('http://localhost:8787/webhook', {
-            method: 'POST',
-            body: 'not valid json',
-        });
-
-        const response = await webhook.fetch(request, env, {} as ExecutionContext);
-        expect(response.status).toBe(200);
-    });
-});
+        expect(response.status).toBe(400)
+    })
+})
